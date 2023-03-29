@@ -22,7 +22,7 @@ async function run(): Promise<void> {
     }
 
     const headRef = pr.head.ref;
-    const owner = context.repo.owner;
+    const { owner, repo: originalRepo } = context.repo;
 
     const matchingPrs = await octokit.rest.pulls.list({
       owner,
@@ -30,8 +30,6 @@ async function run(): Promise<void> {
       state: 'open',
       head: `${owner}:${headRef}`,
     });
-
-    info('2');
 
     if (!matchingPrs || matchingPrs.data.length === 0) {
       info(`No open matching PRs found for ${headRef}`);
@@ -55,7 +53,7 @@ async function run(): Promise<void> {
       info(body);
       await octokit.rest.issues.createComment({
         owner,
-        repo,
+        repo: originalRepo,
         // eslint-disable-next-line camelcase
         issue_number: pr.number,
         body,
@@ -66,7 +64,7 @@ async function run(): Promise<void> {
       error(body);
       await octokit.rest.issues.createComment({
         owner,
-        repo,
+        repo: originalRepo,
         // eslint-disable-next-line camelcase
         issue_number: pr.number,
         body,

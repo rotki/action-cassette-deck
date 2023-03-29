@@ -58,14 +58,13 @@ function run() {
                 return;
             }
             const headRef = pr.head.ref;
-            const owner = context.repo.owner;
+            const { owner, repo: originalRepo } = context.repo;
             const matchingPrs = yield octokit.rest.pulls.list({
                 owner,
                 repo,
                 state: 'open',
                 head: `${owner}:${headRef}`,
             });
-            (0, core_1.info)('2');
             if (!matchingPrs || matchingPrs.data.length === 0) {
                 (0, core_1.info)(`No open matching PRs found for ${headRef}`);
                 return;
@@ -84,7 +83,7 @@ function run() {
                 (0, core_1.info)(body);
                 yield octokit.rest.issues.createComment({
                     owner,
-                    repo,
+                    repo: originalRepo,
                     // eslint-disable-next-line camelcase
                     issue_number: pr.number,
                     body,
@@ -96,7 +95,7 @@ function run() {
                 (0, core_1.error)(body);
                 yield octokit.rest.issues.createComment({
                     owner,
-                    repo,
+                    repo: originalRepo,
                     // eslint-disable-next-line camelcase
                     issue_number: pr.number,
                     body,
