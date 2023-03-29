@@ -1,0 +1,9 @@
+{
+  "pull_request": {
+    "merged": false,
+    "head": {
+      "ref": "test-name"
+    },
+    "number": 1234
+  }
+}

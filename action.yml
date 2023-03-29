@@ -1,0 +1,13 @@
+name: Cassette Deck
+description: Handles the synchronization between the main repo and the vcr cassette repo
+author: Rotki Solutions GmbH
+inputs:
+  token:
+    description: Github token
+    required: true
+  cassette_repo:
+    required: true
+    description: the cassette repo name
+runs:
+  using: node16
+  main: dist/index.js
