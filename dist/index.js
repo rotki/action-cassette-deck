@@ -38,16 +38,73 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const github = __importStar(__nccwpck_require__(3695));
 const core_1 = __nccwpck_require__(7733);
+function createComment(octokit, message) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { number } = message, repo = __rest(message, ["number"]);
+        yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, repo), { 
+            // eslint-disable-next-line camelcase
+            issue_number: number }));
+    });
+}
+function mergePr(octokit, { repo, owner }, prNumber) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const identifier = `${owner}/${repo}#${prNumber}`;
+        (0, core_1.info)(`found ${identifier}, preparing to merge`);
+        const mergeResult = yield octokit.rest.pulls.merge({
+            owner,
+            repo,
+            // eslint-disable-next-line camelcase
+            pull_number: prNumber,
+        });
+        const merged = mergeResult.data.merged;
+        return { identifier, merged };
+    });
+}
+function mergeBranch(octokit, { repo, owner }, base, branch) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const identifier = `${owner}/${repo}/tree/${branch}`;
+        (0, core_1.info)(`found ${identifier}, preparing to merge`);
+        yield octokit.rest.repos.merge({
+            owner,
+            repo,
+            base,
+            head: branch,
+        });
+        const ref = `heads/${branch}`;
+        (0, core_1.info)(`branch ${ref} was merged successfully, preparing to delete`);
+        yield octokit.rest.git.deleteRef({
+            owner,
+            repo,
+            ref,
+        });
+        return { identifier, merged: true };
+    });
+}
 function run() {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const githubToken = (0, core_1.getInput)('token', { required: true });
             const repo = (0, core_1.getInput)('cassette_repo', { required: true });
+            const defaultBranch = (_a = (0, core_1.getInput)('default_branch')) !== null && _a !== void 0 ? _a : 'develop';
             const octokit = github.getOctokit(githubToken);
             const { context } = github;
+            const mainRepo = context.repo;
+            const cassetteRepo = Object.assign(Object.assign({}, mainRepo), { repo });
             if (!context.payload.pull_request) {
                 (0, core_1.info)(`Didn't detect a PR`);
                 return;
@@ -57,50 +114,44 @@ function run() {
                 (0, core_1.info)(`PR #${pr.number} was not merged`);
                 return;
             }
-            const headRef = pr.head.ref;
-            const { owner, repo: originalRepo } = context.repo;
-            const matchingPrs = yield octokit.rest.pulls.list({
-                owner,
-                repo,
-                state: 'open',
-                head: `${owner}:${headRef}`,
-            });
-            if (!matchingPrs || matchingPrs.data.length === 0) {
-                (0, core_1.info)(`No open matching PRs found for ${headRef}`);
-                return;
+            const branch = pr.head.ref;
+            const matchingPrs = yield octokit.rest.pulls.list(Object.assign(Object.assign({}, cassetteRepo), { state: 'open', head: `${mainRepo.owner}:${branch}` }));
+            let branchFound = false;
+            try {
+                const targetBranch = yield octokit.rest.repos.getBranch(Object.assign(Object.assign({}, cassetteRepo), { branch }));
+                if (targetBranch.data.protected) {
+                    (0, core_1.setFailed)(`branch ${branch} is protected, bailing`);
+                    return;
+                }
+                branchFound = true;
             }
-            const cassettePr = matchingPrs.data[0];
-            const prLink = `${owner}/${repo}#${cassettePr.number}`;
-            (0, core_1.info)(`found ${prLink} with head ref: ${headRef} preparing to merge`);
-            const mergeResult = yield octokit.rest.pulls.merge({
-                owner,
-                repo,
-                // eslint-disable-next-line camelcase
-                pull_number: cassettePr.number,
-            });
-            if (mergeResult.data.merged) {
-                const body = `${prLink} was successfully merged`;
-                (0, core_1.info)(body);
-                yield octokit.rest.issues.createComment({
-                    owner,
-                    repo: originalRepo,
-                    // eslint-disable-next-line camelcase
-                    issue_number: pr.number,
-                    body,
-                });
+            catch (e) {
+                if (e instanceof Error) {
+                    (0, core_1.debug)(e.message);
+                }
+            }
+            let identifier = '';
+            let merged = false;
+            if (matchingPrs && matchingPrs.data.length > 0) {
+                ({ identifier, merged } = yield mergePr(octokit, cassetteRepo, matchingPrs.data[0].number));
+            }
+            else if (branchFound) {
+                ({ identifier, merged } = yield mergeBranch(octokit, cassetteRepo, defaultBranch, branch));
             }
             else {
-                const body = `Could not merge ${owner}/${repo}#${cassettePr.number} automatically`;
-                (0, core_1.setFailed)(body);
-                (0, core_1.error)(body);
-                yield octokit.rest.issues.createComment({
-                    owner,
-                    repo: originalRepo,
-                    // eslint-disable-next-line camelcase
-                    issue_number: pr.number,
-                    body,
-                });
+                (0, core_1.info)(`No open matching PRs/branches found for ${branch}`);
                 return;
+            }
+            const message = Object.assign(Object.assign({}, mainRepo), { number: pr.number, body: merged
+                    ? `${identifier} was successfully merged`
+                    : `Could not merge ${identifier} automatically` });
+            yield createComment(octokit, message);
+            if (merged) {
+                (0, core_1.info)(message.body);
+            }
+            else {
+                (0, core_1.error)(message.body);
+                (0, core_1.setFailed)(message.body);
             }
         }
         catch (e) {

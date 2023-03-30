@@ -8,6 +8,10 @@ inputs:
   cassette_repo:
     required: true
     description: the cassette repo name
+  default_branch:
+    required: false
+    description: The default branch where other branches will be merged into
+    default: develop
 runs:
   using: node16
   main: dist/index.js
