@@ -52,48 +52,51 @@ var __rest = (this && this.__rest) || function (s, e) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const github = __importStar(__nccwpck_require__(3695));
 const core_1 = __nccwpck_require__(7733);
-function createComment(octokit, message) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { number } = message, repo = __rest(message, ["number"]);
-        yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, repo), { 
-            // eslint-disable-next-line camelcase
-            issue_number: number }));
+const writeSummary = (message, failure = false) => __awaiter(void 0, void 0, void 0, function* () {
+    if (failure) {
+        (0, core_1.setFailed)(message);
+    }
+    else {
+        (0, core_1.info)(message);
+    }
+    yield core_1.summary.addHeading('Status').addRaw(message).write();
+});
+const createComment = (octokit, message) => __awaiter(void 0, void 0, void 0, function* () {
+    const { number } = message, repo = __rest(message, ["number"]);
+    yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, repo), { 
+        // eslint-disable-next-line camelcase
+        issue_number: number }));
+});
+const mergePr = (octokit, { repo, owner }, prNumber) => __awaiter(void 0, void 0, void 0, function* () {
+    const identifier = `${owner}/${repo}#${prNumber}`;
+    (0, core_1.info)(`found ${identifier}, preparing to merge`);
+    const mergeResult = yield octokit.rest.pulls.merge({
+        owner,
+        repo,
+        // eslint-disable-next-line camelcase
+        pull_number: prNumber,
     });
-}
-function mergePr(octokit, { repo, owner }, prNumber) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const identifier = `${owner}/${repo}#${prNumber}`;
-        (0, core_1.info)(`found ${identifier}, preparing to merge`);
-        const mergeResult = yield octokit.rest.pulls.merge({
-            owner,
-            repo,
-            // eslint-disable-next-line camelcase
-            pull_number: prNumber,
-        });
-        const merged = mergeResult.data.merged;
-        return { identifier, merged };
+    const merged = mergeResult.data.merged;
+    return { identifier, merged };
+});
+const mergeBranch = (octokit, { repo, owner }, base, branch) => __awaiter(void 0, void 0, void 0, function* () {
+    const identifier = `${owner}/${repo}/tree/${branch}`;
+    (0, core_1.info)(`found ${identifier}, preparing to merge`);
+    yield octokit.rest.repos.merge({
+        owner,
+        repo,
+        base,
+        head: branch,
     });
-}
-function mergeBranch(octokit, { repo, owner }, base, branch) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const identifier = `${owner}/${repo}/tree/${branch}`;
-        (0, core_1.info)(`found ${identifier}, preparing to merge`);
-        yield octokit.rest.repos.merge({
-            owner,
-            repo,
-            base,
-            head: branch,
-        });
-        const ref = `heads/${branch}`;
-        (0, core_1.info)(`branch ${ref} was merged successfully, preparing to delete`);
-        yield octokit.rest.git.deleteRef({
-            owner,
-            repo,
-            ref,
-        });
-        return { identifier, merged: true };
+    const ref = `heads/${branch}`;
+    (0, core_1.info)(`branch ${ref} was merged successfully, preparing to delete`);
+    yield octokit.rest.git.deleteRef({
+        owner,
+        repo,
+        ref,
     });
-}
+    return { identifier, merged: true };
+});
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -104,12 +107,12 @@ function run() {
             const mainRepo = context.repo;
             const cassetteRepo = Object.assign(Object.assign({}, mainRepo), { repo });
             if (!context.payload.pull_request) {
-                (0, core_1.info)(`Didn't detect a PR`);
+                yield writeSummary(`Didn't detect a PR`);
                 return;
             }
             const pr = context.payload.pull_request;
             if (!pr.merged) {
-                (0, core_1.info)(`PR #${pr.number} was not merged`);
+                yield writeSummary(`PR #${pr.number} was not merged`);
                 return;
             }
             const prBranch = pr.head.ref;
@@ -119,7 +122,7 @@ function run() {
             try {
                 const targetBranch = yield octokit.rest.repos.getBranch(Object.assign(Object.assign({}, cassetteRepo), { branch: prBranch }));
                 if (targetBranch.data.protected) {
-                    (0, core_1.setFailed)(`branch ${prBranch} is protected, bailing`);
+                    yield writeSummary(`branch ${prBranch} is protected, bailing`, true);
                     return;
                 }
                 branchFound = true;
@@ -138,13 +141,14 @@ function run() {
                 ({ identifier, merged } = yield mergeBranch(octokit, cassetteRepo, prBaseBranch, prBranch));
             }
             else {
-                (0, core_1.info)(`No open matching PRs/branches found for ${prBranch}`);
+                yield writeSummary(`No open matching PRs/branches found for ${prBranch}`);
                 return;
             }
             const message = Object.assign(Object.assign({}, mainRepo), { number: pr.number, body: merged
                     ? `${identifier} was successfully merged`
                     : `Could not merge ${identifier} automatically` });
             yield createComment(octokit, message);
+            yield core_1.summary.addHeading('Status').addRaw(message.body).write();
             if (merged) {
                 (0, core_1.info)(message.body);
             }

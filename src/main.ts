@@ -1,5 +1,12 @@
 import * as github from '@actions/github';
-import { debug, error, getInput, info, setFailed } from '@actions/core';
+import {
+  debug,
+  error,
+  getInput,
+  info,
+  setFailed,
+  summary,
+} from '@actions/core';
 import { type PullRequest } from '@octokit/webhooks-types/schema';
 import { type GitHub } from '@actions/github/lib/utils';
 
@@ -20,23 +27,36 @@ interface Message extends Repo {
 
 type Octokit = InstanceType<typeof GitHub>;
 
-async function createComment(
+const writeSummary = async (
+  message: string,
+  failure = false
+): Promise<void> => {
+  if (failure) {
+    setFailed(message);
+  } else {
+    info(message);
+  }
+
+  await summary.addHeading('Status').addRaw(message).write();
+};
+
+const createComment = async (
   octokit: Octokit,
   message: Message
-): Promise<void> {
+): Promise<void> => {
   const { number, ...repo } = message;
   await octokit.rest.issues.createComment({
     ...repo,
     // eslint-disable-next-line camelcase
     issue_number: number,
   });
-}
+};
 
-async function mergePr(
+const mergePr = async (
   octokit: Octokit,
   { repo, owner }: Repo,
   prNumber: number
-): Promise<MergeStatus> {
+): Promise<MergeStatus> => {
   const identifier = `${owner}/${repo}#${prNumber}`;
 
   info(`found ${identifier}, preparing to merge`);
@@ -50,14 +70,14 @@ async function mergePr(
 
   const merged = mergeResult.data.merged;
   return { identifier, merged };
-}
+};
 
-async function mergeBranch(
+const mergeBranch = async (
   octokit: Octokit,
   { repo, owner }: Repo,
   base: string,
   branch: string
-): Promise<MergeStatus> {
+): Promise<MergeStatus> => {
   const identifier = `${owner}/${repo}/tree/${branch}`;
 
   info(`found ${identifier}, preparing to merge`);
@@ -80,7 +100,7 @@ async function mergeBranch(
   });
 
   return { identifier, merged: true };
-}
+};
 
 async function run(): Promise<void> {
   try {
@@ -93,14 +113,14 @@ async function run(): Promise<void> {
     const cassetteRepo = { ...mainRepo, repo };
 
     if (!context.payload.pull_request) {
-      info(`Didn't detect a PR`);
+      await writeSummary(`Didn't detect a PR`);
       return;
     }
 
     const pr = context.payload.pull_request as PullRequest;
 
     if (!pr.merged) {
-      info(`PR #${pr.number} was not merged`);
+      await writeSummary(`PR #${pr.number} was not merged`);
       return;
     }
 
@@ -121,7 +141,7 @@ async function run(): Promise<void> {
       });
 
       if (targetBranch.data.protected) {
-        setFailed(`branch ${prBranch} is protected, bailing`);
+        await writeSummary(`branch ${prBranch} is protected, bailing`, true);
         return;
       }
 
@@ -149,7 +169,7 @@ async function run(): Promise<void> {
         prBranch
       ));
     } else {
-      info(`No open matching PRs/branches found for ${prBranch}`);
+      await writeSummary(`No open matching PRs/branches found for ${prBranch}`);
       return;
     }
 
@@ -162,6 +182,7 @@ async function run(): Promise<void> {
     };
 
     await createComment(octokit, message);
+    await summary.addHeading('Status').addRaw(message.body).write();
 
     if (merged) {
       info(message.body);
