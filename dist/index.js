@@ -95,12 +95,10 @@ function mergeBranch(octokit, { repo, owner }, base, branch) {
     });
 }
 function run() {
-    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const githubToken = (0, core_1.getInput)('token', { required: true });
             const repo = (0, core_1.getInput)('cassette_repo', { required: true });
-            const defaultBranch = (_a = (0, core_1.getInput)('default_branch')) !== null && _a !== void 0 ? _a : 'develop';
             const octokit = github.getOctokit(githubToken);
             const { context } = github;
             const mainRepo = context.repo;
@@ -114,13 +112,14 @@ function run() {
                 (0, core_1.info)(`PR #${pr.number} was not merged`);
                 return;
             }
-            const branch = pr.head.ref;
-            const matchingPrs = yield octokit.rest.pulls.list(Object.assign(Object.assign({}, cassetteRepo), { state: 'open', head: `${mainRepo.owner}:${branch}` }));
+            const prBranch = pr.head.ref;
+            const prBaseBranch = pr.base.ref;
+            const matchingPrs = yield octokit.rest.pulls.list(Object.assign(Object.assign({}, cassetteRepo), { state: 'open', head: `${mainRepo.owner}:${prBranch}` }));
             let branchFound = false;
             try {
-                const targetBranch = yield octokit.rest.repos.getBranch(Object.assign(Object.assign({}, cassetteRepo), { branch }));
+                const targetBranch = yield octokit.rest.repos.getBranch(Object.assign(Object.assign({}, cassetteRepo), { branch: prBranch }));
                 if (targetBranch.data.protected) {
-                    (0, core_1.setFailed)(`branch ${branch} is protected, bailing`);
+                    (0, core_1.setFailed)(`branch ${prBranch} is protected, bailing`);
                     return;
                 }
                 branchFound = true;
@@ -136,10 +135,10 @@ function run() {
                 ({ identifier, merged } = yield mergePr(octokit, cassetteRepo, matchingPrs.data[0].number));
             }
             else if (branchFound) {
-                ({ identifier, merged } = yield mergeBranch(octokit, cassetteRepo, defaultBranch, branch));
+                ({ identifier, merged } = yield mergeBranch(octokit, cassetteRepo, prBaseBranch, prBranch));
             }
             else {
-                (0, core_1.info)(`No open matching PRs/branches found for ${branch}`);
+                (0, core_1.info)(`No open matching PRs/branches found for ${prBranch}`);
                 return;
             }
             const message = Object.assign(Object.assign({}, mainRepo), { number: pr.number, body: merged

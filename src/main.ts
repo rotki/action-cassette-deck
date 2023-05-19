@@ -86,7 +86,6 @@ async function run(): Promise<void> {
   try {
     const githubToken: string = getInput('token', { required: true });
     const repo: string = getInput('cassette_repo', { required: true });
-    const defaultBranch: string = getInput('default_branch') ?? 'develop';
 
     const octokit = github.getOctokit(githubToken);
     const { context } = github;
@@ -105,23 +104,24 @@ async function run(): Promise<void> {
       return;
     }
 
-    const branch = pr.head.ref;
+    const prBranch = pr.head.ref;
+    const prBaseBranch = pr.base.ref;
 
     const matchingPrs = await octokit.rest.pulls.list({
       ...cassetteRepo,
       state: 'open',
-      head: `${mainRepo.owner}:${branch}`,
+      head: `${mainRepo.owner}:${prBranch}`,
     });
 
     let branchFound = false;
     try {
       const targetBranch = await octokit.rest.repos.getBranch({
         ...cassetteRepo,
-        branch,
+        branch: prBranch,
       });
 
       if (targetBranch.data.protected) {
-        setFailed(`branch ${branch} is protected, bailing`);
+        setFailed(`branch ${prBranch} is protected, bailing`);
         return;
       }
 
@@ -145,11 +145,11 @@ async function run(): Promise<void> {
       ({ identifier, merged } = await mergeBranch(
         octokit,
         cassetteRepo,
-        defaultBranch,
-        branch
+        prBaseBranch,
+        prBranch
       ));
     } else {
-      info(`No open matching PRs/branches found for ${branch}`);
+      info(`No open matching PRs/branches found for ${prBranch}`);
       return;
     }
 
