@@ -24,7 +24,8 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "all": "pnpm run build && pnpm run lint && pnpm run package && pnpm test",
-    "release": "bumpp --no-push"
+    "release": "bumpp --no-push",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@actions/core": "1.10.0",
@@ -32,13 +33,17 @@
     "@octokit/webhooks-types": "6.11.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "17.6.3",
+    "@commitlint/config-conventional": "17.6.3",
     "@rotki/eslint-config": "1.0.6",
     "@types/node": "18.16.13",
     "@vercel/ncc": "0.36.1",
     "bumpp": "9.1.0",
     "eslint": "8.40.0",
     "eslint-plugin-github": "4.7.0",
+    "husky": "8.0.3",
     "js-yaml": "4.1.0",
+    "lint-staged": "13.2.2",
     "nock": "13.3.1",
     "typescript": "5.0.4",
     "vitest": "0.31.1"
@@ -46,5 +51,8 @@
   "engines": {
     "node": ">=16 <17",
     "pnpm": ">=8 <9"
+  },
+  "lint-staged": {
+    "*.{js,ts,vue,yml,json}": "eslint"
   }
 }
