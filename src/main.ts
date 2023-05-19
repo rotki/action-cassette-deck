@@ -1,6 +1,6 @@
 import * as github from '@actions/github';
 import { debug, error, getInput, info, setFailed } from '@actions/core';
-import { type PullRequest } from '@octokit/webhooks-definitions/schema';
+import { type PullRequest } from '@octokit/webhooks-types/schema';
 import { type GitHub } from '@actions/github/lib/utils';
 
 interface MergeStatus {
