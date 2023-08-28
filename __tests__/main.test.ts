@@ -13,7 +13,7 @@ const cassetteRepo = 'sr';
 function createTmpSummaryFile(): string {
   const summaryFile = path.join(
     os.tmpdir(),
-    `summary_${randomBytes(16).toString('hex')}`
+    `summary_${randomBytes(16).toString('hex')}`,
   );
   fs.closeSync(fs.openSync(summaryFile, 'w'));
   return summaryFile;

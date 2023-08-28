@@ -29,7 +29,7 @@ type Octokit = InstanceType<typeof GitHub>;
 
 const writeSummary = async (
   message: string,
-  failure = false
+  failure = false,
 ): Promise<void> => {
   if (failure) {
     setFailed(message);
@@ -42,7 +42,7 @@ const writeSummary = async (
 
 const createComment = async (
   octokit: Octokit,
-  message: Message
+  message: Message,
 ): Promise<void> => {
   const { number, ...repo } = message;
   await octokit.rest.issues.createComment({
@@ -55,7 +55,7 @@ const createComment = async (
 const mergePr = async (
   octokit: Octokit,
   { repo, owner }: Repo,
-  prNumber: number
+  prNumber: number,
 ): Promise<MergeStatus> => {
   const identifier = `${owner}/${repo}#${prNumber}`;
 
@@ -76,7 +76,7 @@ const mergeBranch = async (
   octokit: Octokit,
   { repo, owner }: Repo,
   base: string,
-  branch: string
+  branch: string,
 ): Promise<MergeStatus> => {
   const identifier = `${owner}/${repo}/tree/${branch}`;
 
@@ -159,14 +159,14 @@ async function run(): Promise<void> {
       ({ identifier, merged } = await mergePr(
         octokit,
         cassetteRepo,
-        matchingPrs.data[0].number
+        matchingPrs.data[0].number,
       ));
     } else if (branchFound) {
       ({ identifier, merged } = await mergeBranch(
         octokit,
         cassetteRepo,
         prBaseBranch,
-        prBranch
+        prBranch,
       ));
     } else {
       await writeSummary(`No open matching PRs/branches found for ${prBranch}`);

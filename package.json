@@ -30,23 +30,23 @@
   "dependencies": {
     "@actions/core": "1.10.0",
     "@actions/github": "5.1.1",
-    "@octokit/webhooks-types": "6.11.0"
+    "@octokit/webhooks-types": "7.2.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "17.6.3",
-    "@commitlint/config-conventional": "17.6.3",
-    "@rotki/eslint-config": "1.0.6",
+    "@commitlint/cli": "17.7.1",
+    "@commitlint/config-conventional": "17.7.0",
+    "@rotki/eslint-config": "1.1.1",
     "@types/node": "18.16.13",
     "@vercel/ncc": "0.36.1",
-    "bumpp": "9.1.0",
-    "eslint": "8.40.0",
-    "eslint-plugin-github": "4.7.0",
+    "bumpp": "9.2.0",
+    "eslint": "8.48.0",
+    "eslint-plugin-github": "4.9.2",
     "husky": "8.0.3",
     "js-yaml": "4.1.0",
-    "lint-staged": "13.2.2",
-    "nock": "13.3.1",
-    "typescript": "5.0.4",
-    "vitest": "0.31.1"
+    "lint-staged": "14.0.1",
+    "nock": "13.3.3",
+    "typescript": "5.1.6",
+    "vitest": "0.34.3"
   },
   "engines": {
     "node": ">=16 <17",
