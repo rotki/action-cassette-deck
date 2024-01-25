@@ -18,7 +18,7 @@ There you will find the `Personal access tokens`. Expand and select the `Fine-gr
 Press `Generate new token` to create a new token for usage with the action.
 
 For the duration you can select whatever you want but the max you can set is 2 years.
-As the owner select the user or organization that owns the repos in question. 
+As the owner select the user or organization that owns the repos in question.
 Then go to the repository section and select only the two repos that will be used.
 
 After selecting the repositories, go to permissions and make sure to give `read/write` access
@@ -32,20 +32,20 @@ Finish creating the new personal token and copy the token.
 Then in the repo running the action go to `Settings`/`Environment`,
 and add a new environment named `cassette-merge`.
 
-Once the environment is created add a new `Secret` named `MERGE_TOKEN`. As a value 
+Once the environment is created add a new `Secret` named `MERGE_TOKEN`. As a value
 paste the fine-grained personal access token you created before and save.
 
 The environment usage is encouraged so that the secret is only exposed to this job specifically.
 
-```yaml
+> Note: it should only trigger on pull request closed events
 
+```yaml
 name: Cassette Merge
 
-# only trigger on pull request closed events
 on:
   pull_request_target:
-    types: [ closed ]
-    
+    types: [closed]
+
 jobs:
   merge:
     runs-on: ubuntu-latest
@@ -55,9 +55,7 @@ jobs:
         with:
           token: ${{ secrets.MERGE_TOKEN }}
           cassette_repo: test-caching
-
 ```
-
 
 ## License
 

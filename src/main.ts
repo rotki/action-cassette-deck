@@ -7,8 +7,8 @@ import {
   setFailed,
   summary,
 } from '@actions/core';
-import { type PullRequest } from '@octokit/webhooks-types/schema';
-import { type GitHub } from '@actions/github/lib/utils';
+import type { PullRequest } from '@octokit/webhooks-types/schema';
+import type { GitHub } from '@actions/github/lib/utils';
 
 interface MergeStatus {
   identifier: string;
@@ -27,66 +27,50 @@ interface Message extends Repo {
 
 type Octokit = InstanceType<typeof GitHub>;
 
-const writeSummary = async (
-  message: string,
-  failure = false,
-): Promise<void> => {
-  if (failure) {
+async function writeSummary(message: string, failure = false): Promise<void> {
+  if (failure)
     setFailed(message);
-  } else {
+  else
     info(message);
-  }
 
   await summary.addHeading('Status').addRaw(message).write();
-};
+}
 
-const createComment = async (
-  octokit: Octokit,
-  message: Message,
-): Promise<void> => {
+async function createComment(octokit: Octokit, message: Message): Promise<void> {
   const { number, ...repo } = message;
   await octokit.rest.issues.createComment({
     ...repo,
-    // eslint-disable-next-line camelcase
+
     issue_number: number,
   });
-};
+}
 
-const mergePr = async (
-  octokit: Octokit,
-  { repo, owner }: Repo,
-  prNumber: number,
-): Promise<MergeStatus> => {
+async function mergePr(octokit: Octokit, { owner, repo }: Repo, prNumber: number): Promise<MergeStatus> {
   const identifier = `${owner}/${repo}#${prNumber}`;
 
   info(`found ${identifier}, preparing to merge`);
 
   const mergeResult = await octokit.rest.pulls.merge({
     owner,
-    repo,
-    // eslint-disable-next-line camelcase
+
     pull_number: prNumber,
+    repo,
   });
 
   const merged = mergeResult.data.merged;
   return { identifier, merged };
-};
+}
 
-const mergeBranch = async (
-  octokit: Octokit,
-  { repo, owner }: Repo,
-  base: string,
-  branch: string,
-): Promise<MergeStatus> => {
+async function mergeBranch(octokit: Octokit, { owner, repo }: Repo, base: string, branch: string): Promise<MergeStatus> {
   const identifier = `${owner}/${repo}/tree/${branch}`;
 
   info(`found ${identifier}, preparing to merge`);
 
   await octokit.rest.repos.merge({
-    owner,
-    repo,
     base,
     head: branch,
+    owner,
+    repo,
   });
 
   const ref = `heads/${branch}`;
@@ -95,12 +79,12 @@ const mergeBranch = async (
 
   await octokit.rest.git.deleteRef({
     owner,
-    repo,
     ref,
+    repo,
   });
 
   return { identifier, merged: true };
-};
+}
 
 async function run(): Promise<void> {
   try {
@@ -129,8 +113,8 @@ async function run(): Promise<void> {
 
     const matchingPrs = await octokit.rest.pulls.list({
       ...cassetteRepo,
-      state: 'open',
       head: `${mainRepo.owner}:${prBranch}`,
+      state: 'open',
     });
 
     let branchFound = false;
@@ -146,10 +130,10 @@ async function run(): Promise<void> {
       }
 
       branchFound = true;
-    } catch (e) {
-      if (e instanceof Error) {
-        debug(e.message);
-      }
+    }
+    catch (error_) {
+      if (error_ instanceof Error)
+        debug(error_.message);
     }
 
     let identifier = '';
@@ -161,24 +145,26 @@ async function run(): Promise<void> {
         cassetteRepo,
         matchingPrs.data[0].number,
       ));
-    } else if (branchFound) {
+    }
+    else if (branchFound) {
       ({ identifier, merged } = await mergeBranch(
         octokit,
         cassetteRepo,
         prBaseBranch,
         prBranch,
       ));
-    } else {
+    }
+    else {
       await writeSummary(`No open matching PRs/branches found for ${prBranch}`);
       return;
     }
 
     const message: Message = {
       ...mainRepo,
-      number: pr.number,
       body: merged
         ? `${identifier} was successfully merged`
         : `Could not merge ${identifier} automatically`,
+      number: pr.number,
     };
 
     await createComment(octokit, message);
@@ -186,18 +172,21 @@ async function run(): Promise<void> {
 
     if (merged) {
       info(message.body);
-    } else {
+    }
+    else {
       error(message.body);
       setFailed(message.body);
     }
-  } catch (e) {
-    if (e instanceof Error) {
-      setFailed(e.message);
-      error(e.message);
+  }
+  catch (error_) {
+    if (error_ instanceof Error) {
+      setFailed(error_.message);
+      error(error_.message);
     }
 
-    console.error(e);
+    console.error(error_);
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-floating-promises,unicorn/prefer-top-level-await
 run();

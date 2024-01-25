@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
-import { test } from 'vitest';
+import { it } from 'vitest';
 
 const org = 'test';
 const repo = 'mr';
@@ -20,13 +20,13 @@ function createTmpSummaryFile(): string {
 }
 
 // shows how the runner will run a javascript action with env / stdout protocol
-test('test runs', () => {
+it('test runs', () => {
   const summaryFile = createTmpSummaryFile();
-  process.env['INPUT_TOKEN'] = 'github_token';
-  process.env['INPUT_CASSETTE_REPO'] = cassetteRepo;
-  process.env['GITHUB_REPOSITORY'] = `${org}/${repo}`;
-  process.env['GITHUB_EVENT_PATH'] = path.join(__dirname, 'payload.json');
-  process.env['GITHUB_STEP_SUMMARY'] = summaryFile;
+  process.env.INPUT_TOKEN = 'github_token';
+  process.env.INPUT_CASSETTE_REPO = cassetteRepo;
+  process.env.GITHUB_REPOSITORY = `${org}/${repo}`;
+  process.env.GITHUB_EVENT_PATH = path.join(__dirname, 'payload.json');
+  process.env.GITHUB_STEP_SUMMARY = summaryFile;
 
   const np = process.execPath;
   const ip = path.join(__dirname, '..', 'lib', 'main.js');
