@@ -113,7 +113,8 @@ async function run(): Promise<void> {
 
     const matchingPrs = await octokit.rest.pulls.list({
       ...cassetteRepo,
-      head: `${mainRepo.owner}:${prBranch}`,
+      base: prBaseBranch,
+      head: `${pr.user.login}:${prBranch}`,
       state: 'open',
     });
 
