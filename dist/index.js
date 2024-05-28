@@ -120,7 +120,7 @@ function run() {
             }
             const prBranch = pr.head.ref;
             const prBaseBranch = pr.base.ref;
-            const matchingPrs = yield octokit.rest.pulls.list(Object.assign(Object.assign({}, cassetteRepo), { head: `${mainRepo.owner}:${prBranch}`, state: 'open' }));
+            const matchingPrs = yield octokit.rest.pulls.list(Object.assign(Object.assign({}, cassetteRepo), { base: prBaseBranch, head: `${pr.user.login}:${prBranch}`, state: 'open' }));
             let branchFound = false;
             try {
                 const targetBranch = yield octokit.rest.repos.getBranch(Object.assign(Object.assign({}, cassetteRepo), { branch: prBranch }));
