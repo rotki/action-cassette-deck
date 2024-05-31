@@ -1,6 +1,6 @@
 {
   "name": "action-cassette-deck",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "private": true,
   "packageManager": "pnpm@9.1.0",
   "description": "Action to manage the synchronization between the vcr cassette repo and main rotki repo workflows",
