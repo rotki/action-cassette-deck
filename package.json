@@ -2,7 +2,7 @@
   "name": "action-cassette-deck",
   "version": "2.0.1",
   "private": true,
-  "packageManager": "pnpm@8.10.5",
+  "packageManager": "pnpm@9.1.0",
   "description": "Action to manage the synchronization between the vcr cassette repo and main rotki repo workflows",
   "keywords": [
     "actions",
@@ -25,32 +25,32 @@
     "test:watch": "vitest watch",
     "all": "pnpm run build && pnpm run lint && pnpm run package && pnpm test",
     "release": "bumpp --no-push",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "dependencies": {
     "@actions/core": "1.10.1",
     "@actions/github": "6.0.0",
-    "@octokit/webhooks-types": "7.3.1"
+    "@octokit/webhooks-types": "7.5.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "18.5.0",
-    "@commitlint/config-conventional": "18.5.0",
-    "@rotki/eslint-config": "2.4.4",
-    "@types/node": "20.11.6",
+    "@commitlint/cli": "19.3.0",
+    "@commitlint/config-conventional": "19.2.2",
+    "@rotki/eslint-config": "2.7.0",
+    "@types/node": "20.12.13",
     "@vercel/ncc": "0.38.1",
-    "bumpp": "9.3.0",
-    "eslint": "8.56.0",
-    "eslint-plugin-github": "4.10.1",
-    "husky": "8.0.3",
+    "bumpp": "9.4.1",
+    "eslint": "8.57.0",
+    "eslint-plugin-github": "4.10.2",
+    "husky": "9.0.11",
     "js-yaml": "4.1.0",
-    "lint-staged": "15.2.0",
-    "nock": "13.5.0",
-    "typescript": "5.3.3",
-    "vitest": "1.2.1"
+    "lint-staged": "15.2.5",
+    "nock": "13.5.4",
+    "typescript": "5.4.5",
+    "vitest": "1.6.0"
   },
   "engines": {
     "node": ">=20 <21",
-    "pnpm": ">=8 <9"
+    "pnpm": ">=9 <10"
   },
   "lint-staged": {
     "*.{js,ts,vue,yml,json}": "eslint"

@@ -52,8 +52,8 @@ var __rest = (this && this.__rest) || function (s, e) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const github = __importStar(__nccwpck_require__(5942));
 const core_1 = __nccwpck_require__(9093);
-function writeSummary(message, failure = false) {
-    return __awaiter(this, void 0, void 0, function* () {
+function writeSummary(message_1) {
+    return __awaiter(this, arguments, void 0, function* (message, failure = false) {
         if (failure)
             (0, core_1.setFailed)(message);
         else
@@ -67,8 +67,8 @@ function createComment(octokit, message) {
         yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, repo), { issue_number: number }));
     });
 }
-function mergePr(octokit, { owner, repo }, prNumber) {
-    return __awaiter(this, void 0, void 0, function* () {
+function mergePr(octokit_1, _a, prNumber_1) {
+    return __awaiter(this, arguments, void 0, function* (octokit, { owner, repo }, prNumber) {
         const identifier = `${owner}/${repo}#${prNumber}`;
         (0, core_1.info)(`found ${identifier}, preparing to merge`);
         const mergeResult = yield octokit.rest.pulls.merge({
@@ -80,8 +80,8 @@ function mergePr(octokit, { owner, repo }, prNumber) {
         return { identifier, merged };
     });
 }
-function mergeBranch(octokit, { owner, repo }, base, branch) {
-    return __awaiter(this, void 0, void 0, function* () {
+function mergeBranch(octokit_1, _a, base_1, branch_1) {
+    return __awaiter(this, arguments, void 0, function* (octokit, { owner, repo }, base, branch) {
         const identifier = `${owner}/${repo}/tree/${branch}`;
         (0, core_1.info)(`found ${identifier}, preparing to merge`);
         yield octokit.rest.repos.merge({
