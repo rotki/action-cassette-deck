@@ -3,7 +3,7 @@ const github = require('eslint-plugin-github');
 
 module.exports = rotki({
   typescript: {
-    tsconfigPath: 'tsconfig.eslint.json',
+    tsconfigPath: 'tsconfig.json',
   },
   stylistic: true,
   formatters: true,
