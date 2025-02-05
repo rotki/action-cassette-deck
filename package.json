@@ -2,7 +2,7 @@
   "name": "action-cassette-deck",
   "version": "2.1.0",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@9.15.5",
   "description": "Action to manage the synchronization between the vcr cassette repo and main rotki repo workflows",
   "keywords": [
     "actions",
@@ -33,21 +33,21 @@
     "@octokit/webhooks-types": "7.6.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "19.6.0",
-    "@commitlint/config-conventional": "19.6.0",
-    "@rotki/eslint-config": "3.6.0",
+    "@commitlint/cli": "19.7.1",
+    "@commitlint/config-conventional": "19.7.1",
+    "@rotki/eslint-config": "3.7.0",
     "@tsconfig/node20": "20.1.4",
-    "@types/node": "20.17.10",
+    "@types/node": "20.17.17",
     "@vercel/ncc": "0.38.3",
-    "bumpp": "9.9.1",
-    "eslint": "9.16.0",
-    "eslint-plugin-github": "5.1.4",
+    "bumpp": "10.0.2",
+    "eslint": "9.19.0",
+    "eslint-plugin-github": "5.1.8",
     "husky": "9.1.7",
     "js-yaml": "4.1.0",
-    "lint-staged": "15.2.11",
-    "nock": "13.5.6",
-    "typescript": "5.7.2",
-    "vitest": "2.1.8"
+    "lint-staged": "15.4.3",
+    "nock": "14.0.0",
+    "typescript": "5.7.3",
+    "vitest": "3.0.5"
   },
   "engines": {
     "node": ">=20 <21",
