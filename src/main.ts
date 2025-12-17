@@ -1,4 +1,5 @@
-import * as github from '@actions/github';
+import type { GitHub } from '@actions/github/lib/utils';
+import type { PullRequest } from '@octokit/webhooks-types/schema';
 import {
   debug,
   error,
@@ -7,8 +8,7 @@ import {
   setFailed,
   summary,
 } from '@actions/core';
-import type { PullRequest } from '@octokit/webhooks-types/schema';
-import type { GitHub } from '@actions/github/lib/utils';
+import * as github from '@actions/github';
 
 interface MergeStatus {
   identifier: string;

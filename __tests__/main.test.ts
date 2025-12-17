@@ -1,9 +1,9 @@
-import * as process from 'node:process';
 import * as cp from 'node:child_process';
-import * as path from 'node:path';
-import * as os from 'node:os';
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import * as process from 'node:process';
 import { it } from 'vitest';
 
 const org = 'test';
