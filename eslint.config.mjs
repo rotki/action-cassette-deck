@@ -19,6 +19,11 @@ export default rotki({
     'github/no-dynamic-script-tag': 'error',
   },
 }, {
+  files: ['**/*.yml'],
+  rules: {
+    '@stylistic/spaced-comment': 'off',
+  },
+}, {
   files: ['**/*.ts'],
   rules: {
     'perfectionist/sort-objects': 'error',
