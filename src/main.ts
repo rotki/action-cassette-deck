@@ -101,6 +101,7 @@ async function run(): Promise<void> {
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub Actions context lacks strong typing
     const pr = context.payload.pull_request as PullRequest;
 
     if (!pr.merged) {

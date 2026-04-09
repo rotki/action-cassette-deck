@@ -26,11 +26,11 @@ describe('main', () => {
     process.env.INPUT_TOKEN = 'github_token';
     process.env.INPUT_CASSETTE_REPO = cassetteRepo;
     process.env.GITHUB_REPOSITORY = `${org}/${repo}`;
-    process.env.GITHUB_EVENT_PATH = path.join(__dirname, 'payload.json');
+    process.env.GITHUB_EVENT_PATH = path.join(import.meta.dirname, 'payload.json');
     process.env.GITHUB_STEP_SUMMARY = summaryFile;
 
     const np = process.execPath;
-    const ip = path.join(__dirname, '..', 'lib', 'main.js');
+    const ip = path.join(import.meta.dirname, '..', 'dist', 'index.js');
     const options: cp.ExecFileSyncOptions = {
       env: process.env,
     };

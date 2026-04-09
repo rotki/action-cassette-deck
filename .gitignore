@@ -96,8 +96,6 @@ Thumbs.db
 
 # Ignore built ts files
 __tests__/runner/*
-lib/**/*
-
 # Intellij
 .idea
 
