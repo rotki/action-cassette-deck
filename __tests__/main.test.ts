@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as process from 'node:process';
-import { it } from 'vitest';
+import { describe, it } from 'vitest';
 
 const org = 'test';
 const repo = 'mr';
@@ -19,21 +19,23 @@ function createTmpSummaryFile(): string {
   return summaryFile;
 }
 
-// shows how the runner will run a javascript action with env / stdout protocol
-it('test runs', () => {
-  const summaryFile = createTmpSummaryFile();
-  process.env.INPUT_TOKEN = 'github_token';
-  process.env.INPUT_CASSETTE_REPO = cassetteRepo;
-  process.env.GITHUB_REPOSITORY = `${org}/${repo}`;
-  process.env.GITHUB_EVENT_PATH = path.join(__dirname, 'payload.json');
-  process.env.GITHUB_STEP_SUMMARY = summaryFile;
+describe('main', () => {
+  // shows how the runner will run a javascript action with env / stdout protocol
+  it('test runs', () => {
+    const summaryFile = createTmpSummaryFile();
+    process.env.INPUT_TOKEN = 'github_token';
+    process.env.INPUT_CASSETTE_REPO = cassetteRepo;
+    process.env.GITHUB_REPOSITORY = `${org}/${repo}`;
+    process.env.GITHUB_EVENT_PATH = path.join(__dirname, 'payload.json');
+    process.env.GITHUB_STEP_SUMMARY = summaryFile;
 
-  const np = process.execPath;
-  const ip = path.join(__dirname, '..', 'lib', 'main.js');
-  const options: cp.ExecFileSyncOptions = {
-    env: process.env,
-  };
-  // eslint-disable-next-line no-console
-  console.log(cp.execFileSync(np, [ip], options).toString());
-  fs.rmSync(summaryFile);
+    const np = process.execPath;
+    const ip = path.join(__dirname, '..', 'lib', 'main.js');
+    const options: cp.ExecFileSyncOptions = {
+      env: process.env,
+    };
+    // eslint-disable-next-line no-console
+    console.log(cp.execFileSync(np, [ip], options).toString());
+    fs.rmSync(summaryFile);
+  });
 });
