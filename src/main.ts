@@ -88,7 +88,7 @@ async function mergeBranch(octokit: Octokit, { owner, repo }: Repo, base: string
   return { identifier, merged: true };
 }
 
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   try {
     const githubToken: string = getInput('token', { required: true });
     const repo: string = getInput('cassette_repo', { required: true });
@@ -191,6 +191,3 @@ async function run(): Promise<void> {
     console.error(error_);
   }
 }
-
-// eslint-disable-next-line @typescript-eslint/no-floating-promises,unicorn/prefer-top-level-await
-run();

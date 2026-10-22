@@ -34382,6 +34382,6 @@ async function run() {
         console.error(error_);
     }
 }
-// eslint-disable-next-line @typescript-eslint/no-floating-promises,unicorn/prefer-top-level-await
-run();
+
+await run();
 //# sourceMappingURL=index.js.map
