@@ -7,10 +7,11 @@ work on the same branch:
 
 1. An open PR from the same author and branch, targeting the same base branch, gets merged.
 2. Otherwise, a branch with the same name gets merged into the base branch and then deleted.
-   Protected branches are never merged.
+   A protected branch is a base branch, not cassette work, so it is skipped without failing
+   the job.
 
 It then comments on the original PR with the result, and fails the job if the merge did not
-go through.
+go through, including when the merge request itself errors (for example a conflict).
 
 ## Inputs
 

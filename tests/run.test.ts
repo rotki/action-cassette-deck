@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => {
     },
     setFailed: vi.fn(),
     summary,
+    warning: vi.fn(),
   };
 });
 
@@ -39,6 +40,7 @@ vi.mock('@actions/core', () => ({
   info: vi.fn(),
   setFailed: mocks.setFailed,
   summary: mocks.summary,
+  warning: mocks.warning,
 }));
 
 vi.mock('@actions/github', () => ({
@@ -124,5 +126,115 @@ describe('run with pr_number', () => {
     expect(pulls.get).not.toHaveBeenCalled();
     expect(mocks.summary.addRaw).toHaveBeenCalledWith(`Didn't detect a PR`);
     expect(mocks.setFailed).not.toHaveBeenCalled();
+  });
+});
+
+describe('run merging cassettes', () => {
+  const { git, issues, repos } = mocks.octokit.rest;
+
+  function requestError(message: string, status: number): Error {
+    return Object.assign(new Error(message), { status });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.inputs = { cassette_repo: 'sr', pr_number: '42', token: 'github_token' };
+    mocks.context.payload = { ref: 'refs/heads/develop' };
+    pulls.get.mockResolvedValue({
+      data: {
+        base: { ref: 'develop' },
+        head: { ref: 'feature' },
+        merged: true,
+        number: 42,
+        user: { login: 'contributor' },
+      },
+    });
+    issues.createComment.mockResolvedValue({});
+  });
+
+  it('merges a matching PR without looking up a protected branch', async () => {
+    pulls.list.mockResolvedValue({ data: [{ number: 7 }] });
+    pulls.merge.mockResolvedValue({ data: { merged: true } });
+    repos.getBranch.mockResolvedValue({ data: { protected: true } });
+
+    await run();
+
+    expect(pulls.merge).toHaveBeenCalledWith({ owner: 'test', pull_number: 7, repo: 'sr' });
+    expect(repos.getBranch).not.toHaveBeenCalled();
+    expect(mocks.setFailed).not.toHaveBeenCalled();
+  });
+
+  it('skips a protected branch when no PR matches', async () => {
+    pulls.list.mockResolvedValue({ data: [] });
+    repos.getBranch.mockResolvedValue({ data: { protected: true } });
+
+    await run();
+
+    expect(repos.merge).not.toHaveBeenCalled();
+    expect(git.deleteRef).not.toHaveBeenCalled();
+    expect(mocks.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining('nothing to merge'));
+    expect(mocks.setFailed).not.toHaveBeenCalled();
+  });
+
+  it('comments on the PR when merging the cassette PR throws', async () => {
+    pulls.list.mockResolvedValue({ data: [{ number: 7 }] });
+    pulls.merge.mockRejectedValue(requestError('Pull Request is not mergeable', 405));
+
+    await run();
+
+    expect(issues.createComment).toHaveBeenCalledWith({
+      body: expect.stringMatching(/^Could not merge test\/sr#7 automatically:/),
+      issue_number: 42,
+      owner: 'test',
+      repo: 'mr',
+    });
+    expect(mocks.setFailed).toHaveBeenCalledWith(expect.stringContaining('Pull Request is not mergeable'));
+  });
+
+  it('comments on the PR when merging the cassette branch throws', async () => {
+    pulls.list.mockResolvedValue({ data: [] });
+    repos.getBranch.mockResolvedValue({ data: { protected: false } });
+    repos.merge.mockRejectedValue(requestError('Merge conflict', 409));
+
+    await run();
+
+    expect(issues.createComment).toHaveBeenCalledWith({
+      body: expect.stringMatching(/^Could not merge test\/sr\/tree\/feature automatically:/),
+      issue_number: 42,
+      owner: 'test',
+      repo: 'mr',
+    });
+    expect(mocks.setFailed).toHaveBeenCalledWith(expect.stringContaining('Merge conflict'));
+    expect(git.deleteRef).not.toHaveBeenCalled();
+  });
+
+  it('reports a merged branch that could not be deleted as merged', async () => {
+    pulls.list.mockResolvedValue({ data: [] });
+    repos.getBranch.mockResolvedValue({ data: { protected: false } });
+    repos.merge.mockResolvedValue({ data: {} });
+    git.deleteRef.mockRejectedValue(requestError('Reference does not exist', 422));
+
+    await run();
+
+    expect(issues.createComment).toHaveBeenCalledWith({
+      body: 'test/sr/tree/feature was successfully merged',
+      issue_number: 42,
+      owner: 'test',
+      repo: 'mr',
+    });
+    expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining('could not be deleted'));
+    expect(mocks.setFailed).not.toHaveBeenCalled();
+  });
+
+  it('still fails with the merge error when commenting throws', async () => {
+    pulls.list.mockResolvedValue({ data: [{ number: 7 }] });
+    pulls.merge.mockRejectedValue(requestError('Pull Request is not mergeable', 405));
+    issues.createComment.mockRejectedValue(requestError('Resource not accessible by integration', 403));
+
+    await run();
+
+    expect(issues.createComment).toHaveBeenCalledOnce();
+    expect(mocks.setFailed).toHaveBeenCalledWith(expect.stringContaining('Pull Request is not mergeable'));
+    expect(mocks.setFailed).not.toHaveBeenCalledWith(expect.stringContaining('Resource not accessible'));
   });
 });

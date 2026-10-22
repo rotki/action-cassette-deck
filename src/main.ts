@@ -7,13 +7,9 @@ import {
   info,
   setFailed,
   summary,
+  warning,
 } from '@actions/core';
 import * as github from '@actions/github';
-
-interface MergeStatus {
-  identifier: string;
-  merged: boolean;
-}
 
 interface Repo {
   owner: string;
@@ -39,6 +35,11 @@ interface PullRequestInfo {
 
 type BranchStatus = 'found' | 'missing' | 'protected';
 
+interface MergeTarget {
+  identifier: string;
+  merge: () => Promise<boolean>;
+}
+
 async function writeSummary(message: string, failure = false): Promise<void> {
   if (failure)
     setFailed(message);
@@ -57,9 +58,18 @@ async function createComment(octokit: Octokit, message: Message): Promise<void> 
   });
 }
 
-async function mergePr(octokit: Octokit, { owner, repo }: Repo, prNumber: number): Promise<MergeStatus> {
-  const identifier = `${owner}/${repo}#${prNumber}`;
+function getErrorMessage(cause: unknown): string {
+  if (!(cause instanceof Error))
+    return String(cause);
 
+  // Octokit's RequestError carries the HTTP status separately from the message.
+  if ('status' in cause && typeof cause.status === 'number')
+    return `${cause.message} (HTTP ${cause.status})`;
+
+  return cause.message;
+}
+
+async function mergePr(octokit: Octokit, { owner, repo }: Repo, prNumber: number, identifier: string): Promise<boolean> {
   info(`found ${identifier}, preparing to merge`);
 
   const mergeResult = await octokit.rest.pulls.merge({
@@ -69,13 +79,10 @@ async function mergePr(octokit: Octokit, { owner, repo }: Repo, prNumber: number
     repo,
   });
 
-  const merged = mergeResult.data.merged;
-  return { identifier, merged };
+  return mergeResult.data.merged;
 }
 
-async function mergeBranch(octokit: Octokit, { owner, repo }: Repo, base: string, branch: string): Promise<MergeStatus> {
-  const identifier = `${owner}/${repo}/tree/${branch}`;
-
+async function mergeBranch(octokit: Octokit, { owner, repo }: Repo, base: string, branch: string, identifier: string): Promise<boolean> {
   info(`found ${identifier}, preparing to merge`);
 
   await octokit.rest.repos.merge({
@@ -89,13 +96,19 @@ async function mergeBranch(octokit: Octokit, { owner, repo }: Repo, base: string
 
   info(`branch ${ref} was merged successfully, preparing to delete`);
 
-  await octokit.rest.git.deleteRef({
-    owner,
-    ref,
-    repo,
-  });
+  // The merge already went through, so a failed delete only leaves the branch behind.
+  try {
+    await octokit.rest.git.deleteRef({
+      owner,
+      ref,
+      repo,
+    });
+  }
+  catch (error_) {
+    warning(`${identifier} was merged but the branch could not be deleted: ${getErrorMessage(error_)}`);
+  }
 
-  return { identifier, merged: true };
+  return true;
 }
 
 async function getBranchStatus(octokit: Octokit, repo: Repo, branch: string): Promise<BranchStatus> {
@@ -147,6 +160,57 @@ function getAuthor(pr: PullRequestInfo): string {
   return pr.user.login;
 }
 
+async function findMergeTarget(octokit: Octokit, cassetteRepo: Repo, pr: PullRequestInfo): Promise<MergeTarget | undefined> {
+  const author = getAuthor(pr);
+  const prBranch = pr.head.ref;
+  const prBaseBranch = pr.base.ref;
+  const { owner, repo } = cassetteRepo;
+
+  const matchingPrs = await octokit.rest.pulls.list({
+    ...cassetteRepo,
+    base: prBaseBranch,
+    head: `${author}:${prBranch}`,
+    state: 'open',
+  });
+
+  if (matchingPrs.data.length > 0) {
+    const prNumber = matchingPrs.data[0].number;
+    const identifier = `${owner}/${repo}#${prNumber}`;
+    return { identifier, merge: async () => mergePr(octokit, cassetteRepo, prNumber, identifier) };
+  }
+
+  const branchStatus = await getBranchStatus(octokit, cassetteRepo, prBranch);
+
+  // A protected branch is a base branch, never a cassette branch to merge and delete.
+  if (branchStatus === 'protected') {
+    await writeSummary(`branch ${prBranch} is protected, nothing to merge`);
+    return undefined;
+  }
+
+  if (branchStatus === 'missing') {
+    await writeSummary(`No open matching PRs/branches found for ${prBranch}`);
+    return undefined;
+  }
+
+  const identifier = `${owner}/${repo}/tree/${prBranch}`;
+  return { identifier, merge: async () => mergeBranch(octokit, cassetteRepo, prBaseBranch, prBranch, identifier) };
+}
+
+async function reportMergeFailure(octokit: Octokit, message: Message): Promise<void> {
+  // Fail first so that a failing comment cannot mask the merge error.
+  error(message.body);
+  setFailed(message.body);
+
+  try {
+    await createComment(octokit, message);
+  }
+  catch (error_) {
+    warning(`Could not comment on PR #${message.number}: ${getErrorMessage(error_)}`);
+  }
+
+  await summary.addHeading('Status').addRaw(message.body).write();
+}
+
 export async function run(): Promise<void> {
   try {
     const githubToken: string = getInput('token', { required: true });
@@ -166,44 +230,22 @@ export async function run(): Promise<void> {
       return;
     }
 
-    const author = getAuthor(pr);
-    const prBranch = pr.head.ref;
-    const prBaseBranch = pr.base.ref;
-
-    const matchingPrs = await octokit.rest.pulls.list({
-      ...cassetteRepo,
-      base: prBaseBranch,
-      head: `${author}:${prBranch}`,
-      state: 'open',
-    });
-
-    const branchStatus = await getBranchStatus(octokit, cassetteRepo, prBranch);
-
-    if (branchStatus === 'protected') {
-      await writeSummary(`branch ${prBranch} is protected, bailing`, true);
+    const target = await findMergeTarget(octokit, cassetteRepo, pr);
+    if (!target)
       return;
-    }
 
-    let identifier = '';
-    let merged = false;
+    const { identifier, merge } = target;
 
-    if (matchingPrs.data.length > 0) {
-      ({ identifier, merged } = await mergePr(
-        octokit,
-        cassetteRepo,
-        matchingPrs.data[0].number,
-      ));
+    let merged: boolean;
+    try {
+      merged = await merge();
     }
-    else if (branchStatus === 'found') {
-      ({ identifier, merged } = await mergeBranch(
-        octokit,
-        cassetteRepo,
-        prBaseBranch,
-        prBranch,
-      ));
-    }
-    else {
-      await writeSummary(`No open matching PRs/branches found for ${prBranch}`);
+    catch (error_) {
+      await reportMergeFailure(octokit, {
+        ...mainRepo,
+        body: `Could not merge ${identifier} automatically: ${getErrorMessage(error_)}`,
+        number: pr.number,
+      });
       return;
     }
 
