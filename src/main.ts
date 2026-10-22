@@ -1,5 +1,5 @@
 import type { GitHub } from '@actions/github/lib/utils';
-import type { PullRequest } from '@octokit/webhooks-types/schema';
+import type { components } from '@octokit/openapi-webhooks-types';
 import {
   debug,
   error,
@@ -26,6 +26,8 @@ interface Message extends Repo {
 }
 
 type Octokit = InstanceType<typeof GitHub>;
+
+type PullRequest = components['schemas']['pull-request-webhook'];
 
 async function writeSummary(message: string, failure = false): Promise<void> {
   if (failure)
