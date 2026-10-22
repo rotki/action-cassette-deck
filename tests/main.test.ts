@@ -34,7 +34,7 @@ describe('main', () => {
     const options: cp.ExecFileSyncOptions = {
       env: process.env,
     };
-    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console -- surface the action's stdout in the test output
     console.log(cp.execFileSync(np, [ip], options).toString());
     fs.rmSync(summaryFile);
   });

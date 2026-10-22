@@ -34303,6 +34303,20 @@ async function mergeBranch(octokit, { owner, repo }, base, branch) {
     });
     return { identifier, merged: true };
 }
+async function getBranchStatus(octokit, repo, branch) {
+    try {
+        const targetBranch = await octokit.rest.repos.getBranch({
+            ...repo,
+            branch,
+        });
+        return targetBranch.data.protected ? 'protected' : 'found';
+    }
+    catch (error_) {
+        if (error_ instanceof Error)
+            debug(error_.message);
+        return 'missing';
+    }
+}
 async function run() {
     try {
         const githubToken = getInput('token', { required: true });
@@ -34329,28 +34343,17 @@ async function run() {
             head: `${pr.user.login}:${prBranch}`,
             state: 'open',
         });
-        let branchFound = false;
-        try {
-            const targetBranch = await octokit.rest.repos.getBranch({
-                ...cassetteRepo,
-                branch: prBranch,
-            });
-            if (targetBranch.data.protected) {
-                await writeSummary(`branch ${prBranch} is protected, bailing`, true);
-                return;
-            }
-            branchFound = true;
-        }
-        catch (error_) {
-            if (error_ instanceof Error)
-                debug(error_.message);
+        const branchStatus = await getBranchStatus(octokit, cassetteRepo, prBranch);
+        if (branchStatus === 'protected') {
+            await writeSummary(`branch ${prBranch} is protected, bailing`, true);
+            return;
         }
         let identifier = '';
         let merged = false;
-        if (matchingPrs && matchingPrs.data.length > 0) {
+        if (matchingPrs.data.length > 0) {
             ({ identifier, merged } = await mergePr(octokit, cassetteRepo, matchingPrs.data[0].number));
         }
-        else if (branchFound) {
+        else if (branchStatus === 'found') {
             ({ identifier, merged } = await mergeBranch(octokit, cassetteRepo, prBaseBranch, prBranch));
         }
         else {
