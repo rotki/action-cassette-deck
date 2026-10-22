@@ -237,4 +237,60 @@ describe('run merging cassettes', () => {
     expect(mocks.setFailed).toHaveBeenCalledWith(expect.stringContaining('Pull Request is not mergeable'));
     expect(mocks.setFailed).not.toHaveBeenCalledWith(expect.stringContaining('Resource not accessible'));
   });
+
+  it('treats a 404 on the branch lookup as no branch', async () => {
+    pulls.list.mockResolvedValue({ data: [] });
+    repos.getBranch.mockRejectedValue(requestError('Branch not found', 404));
+
+    await run();
+
+    expect(mocks.summary.addRaw).toHaveBeenCalledWith('No open matching PRs/branches found for feature');
+    expect(mocks.setFailed).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a server error', requestError('Server Error', 500)],
+    ['a permission error', requestError('Resource not accessible by integration', 403)],
+    ['an error without a status', new Error('socket hang up')],
+  ])('fails when the branch lookup hits %s', async (_, cause) => {
+    pulls.list.mockResolvedValue({ data: [] });
+    repos.getBranch.mockRejectedValue(cause);
+
+    await run();
+
+    expect(mocks.setFailed).toHaveBeenCalledWith(expect.stringContaining(cause.message));
+    expect(repos.merge).not.toHaveBeenCalled();
+    expect(git.deleteRef).not.toHaveBeenCalled();
+    expect(issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it('comments and fails when the cassette PR is not merged', async () => {
+    pulls.list.mockResolvedValue({ data: [{ number: 7 }] });
+    pulls.merge.mockResolvedValue({ data: { merged: false } });
+
+    await run();
+
+    expect(issues.createComment).toHaveBeenCalledWith({
+      body: 'Could not merge test/sr#7 automatically',
+      issue_number: 42,
+      owner: 'test',
+      repo: 'mr',
+    });
+    expect(mocks.setFailed).toHaveBeenCalledOnce();
+    expect(mocks.setFailed).toHaveBeenCalledWith('Could not merge test/sr#7 automatically');
+    // Failing before commenting keeps a comment error from replacing the merge result.
+    expect(mocks.setFailed).toHaveBeenCalledBefore(issues.createComment);
+  });
+
+  it('still fails with the merge result when commenting on an unmerged PR throws', async () => {
+    pulls.list.mockResolvedValue({ data: [{ number: 7 }] });
+    pulls.merge.mockResolvedValue({ data: { merged: false } });
+    issues.createComment.mockRejectedValue(requestError('Resource not accessible by integration', 403));
+
+    await run();
+
+    expect(mocks.setFailed).toHaveBeenCalledWith('Could not merge test/sr#7 automatically');
+    expect(mocks.setFailed).not.toHaveBeenCalledWith(expect.stringContaining('Resource not accessible'));
+    expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining('Could not comment on PR #42'));
+  });
 });

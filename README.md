@@ -9,6 +9,8 @@ work on the same branch:
 2. Otherwise, a branch with the same name gets merged into the base branch and then deleted.
    A protected branch is a base branch, not cassette work, so it is skipped without failing
    the job.
+3. If neither exists, there is nothing to merge. Only a 404 counts as a missing branch: any
+   other error while looking it up (permissions, rate limits, outages) fails the job.
 
 It then comments on the original PR with the result, and fails the job if the merge did not
 go through, including when the merge request itself errors (for example a conflict).

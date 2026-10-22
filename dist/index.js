@@ -34282,12 +34282,18 @@ async function createComment(octokit, message) {
         issue_number: number,
     });
 }
+// Octokit's RequestError carries the HTTP status separately from the message.
+function getStatus(cause) {
+    if (cause instanceof Error && 'status' in cause && typeof cause.status === 'number')
+        return cause.status;
+    return undefined;
+}
 function getErrorMessage(cause) {
     if (!(cause instanceof Error))
         return String(cause);
-    // Octokit's RequestError carries the HTTP status separately from the message.
-    if ('status' in cause && typeof cause.status === 'number')
-        return `${cause.message} (HTTP ${cause.status})`;
+    const status = getStatus(cause);
+    if (status !== undefined)
+        return `${cause.message} (HTTP ${status})`;
     return cause.message;
 }
 async function mergePr(octokit, { owner, repo }, prNumber, identifier) {
@@ -34331,8 +34337,11 @@ async function getBranchStatus(octokit, repo, branch) {
         return targetBranch.data.protected ? 'protected' : 'found';
     }
     catch (error_) {
-        if (error_ instanceof Error)
-            debug(error_.message);
+        // Anything but a 404 (rate limit, permissions, outage) must fail the run instead of
+        // passing as "nothing to merge".
+        if (getStatus(error_) !== 404)
+            throw error_;
+        debug(getErrorMessage(error_));
         return 'missing';
     }
 }
@@ -34433,22 +34442,22 @@ async function run() {
             });
             return;
         }
+        if (!merged) {
+            await reportMergeFailure(octokit, {
+                ...mainRepo,
+                body: `Could not merge ${identifier} automatically`,
+                number: pr.number,
+            });
+            return;
+        }
         const message = {
             ...mainRepo,
-            body: merged
-                ? `${identifier} was successfully merged`
-                : `Could not merge ${identifier} automatically`,
+            body: `${identifier} was successfully merged`,
             number: pr.number,
         };
         await createComment(octokit, message);
         await summary.addHeading('Status').addRaw(message.body).write();
-        if (merged) {
-            info(message.body);
-        }
-        else {
-            error(message.body);
-            setFailed(message.body);
-        }
+        info(message.body);
     }
     catch (error_) {
         if (error_ instanceof Error) {
