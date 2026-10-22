@@ -34317,6 +34317,31 @@ async function getBranchStatus(octokit, repo, branch) {
         return 'missing';
     }
 }
+async function getPullRequest(octokit, repo) {
+    const prNumber = getInput('pr_number');
+    if (prNumber) {
+        if (!/^\d+$/.test(prNumber))
+            throw new Error(`pr_number must be a pull request number, got '${prNumber}'`);
+        const { data } = await octokit.rest.pulls.get({
+            ...repo,
+            pull_number: Number(prNumber),
+        });
+        return data;
+    }
+    const { pull_request: payload } = context.payload;
+    if (!payload) {
+        await writeSummary(`Didn't detect a PR`);
+        return undefined;
+    }
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub Actions context lacks strong typing
+    const pr = payload;
+    return pr;
+}
+function getAuthor(pr) {
+    if (!pr.user)
+        throw new Error(`PR #${pr.number} has no author`);
+    return pr.user.login;
+}
 async function run() {
     try {
         const githubToken = getInput('token', { required: true });
@@ -34325,22 +34350,20 @@ async function run() {
         const { context } = github;
         const mainRepo = context.repo;
         const cassetteRepo = { ...mainRepo, repo };
-        if (!context.payload.pull_request) {
-            await writeSummary(`Didn't detect a PR`);
+        const pr = await getPullRequest(octokit, mainRepo);
+        if (!pr)
             return;
-        }
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub Actions context lacks strong typing
-        const pr = context.payload.pull_request;
         if (!pr.merged) {
             await writeSummary(`PR #${pr.number} was not merged`);
             return;
         }
+        const author = getAuthor(pr);
         const prBranch = pr.head.ref;
         const prBaseBranch = pr.base.ref;
         const matchingPrs = await octokit.rest.pulls.list({
             ...cassetteRepo,
             base: prBaseBranch,
-            head: `${pr.user.login}:${prBranch}`,
+            head: `${author}:${prBranch}`,
             state: 'open',
         });
         const branchStatus = await getBranchStatus(octokit, cassetteRepo, prBranch);

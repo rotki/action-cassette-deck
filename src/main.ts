@@ -29,6 +29,14 @@ type Octokit = InstanceType<typeof GitHub>;
 
 type PullRequest = components['schemas']['pull-request-webhook'];
 
+interface PullRequestInfo {
+  base: { ref: string };
+  head: { ref: string };
+  merged: boolean | null;
+  number: number;
+  user: { login: string } | null;
+}
+
 type BranchStatus = 'found' | 'missing' | 'protected';
 
 async function writeSummary(message: string, failure = false): Promise<void> {
@@ -107,6 +115,38 @@ async function getBranchStatus(octokit: Octokit, repo: Repo, branch: string): Pr
   }
 }
 
+async function getPullRequest(octokit: Octokit, repo: Repo): Promise<PullRequestInfo | undefined> {
+  const prNumber = getInput('pr_number');
+
+  if (prNumber) {
+    if (!/^\d+$/.test(prNumber))
+      throw new Error(`pr_number must be a pull request number, got '${prNumber}'`);
+
+    const { data } = await octokit.rest.pulls.get({
+      ...repo,
+      pull_number: Number(prNumber),
+    });
+    return data;
+  }
+
+  const { pull_request: payload } = github.context.payload;
+  if (!payload) {
+    await writeSummary(`Didn't detect a PR`);
+    return undefined;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub Actions context lacks strong typing
+  const pr = payload as PullRequest;
+  return pr;
+}
+
+function getAuthor(pr: PullRequestInfo): string {
+  if (!pr.user)
+    throw new Error(`PR #${pr.number} has no author`);
+
+  return pr.user.login;
+}
+
 export async function run(): Promise<void> {
   try {
     const githubToken: string = getInput('token', { required: true });
@@ -117,26 +157,23 @@ export async function run(): Promise<void> {
     const mainRepo = context.repo;
     const cassetteRepo = { ...mainRepo, repo };
 
-    if (!context.payload.pull_request) {
-      await writeSummary(`Didn't detect a PR`);
+    const pr = await getPullRequest(octokit, mainRepo);
+    if (!pr)
       return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub Actions context lacks strong typing
-    const pr = context.payload.pull_request as PullRequest;
 
     if (!pr.merged) {
       await writeSummary(`PR #${pr.number} was not merged`);
       return;
     }
 
+    const author = getAuthor(pr);
     const prBranch = pr.head.ref;
     const prBaseBranch = pr.base.ref;
 
     const matchingPrs = await octokit.rest.pulls.list({
       ...cassetteRepo,
       base: prBaseBranch,
-      head: `${pr.user.login}:${prBranch}`,
+      head: `${author}:${prBranch}`,
       state: 'open',
     });
 

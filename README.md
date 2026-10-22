@@ -37,7 +37,53 @@ paste the fine-grained personal access token you created before and save.
 
 The environment usage is encouraged so that the secret is only exposed to this job specifically.
 
-> Note: it should only trigger on pull request closed events
+#### Triggering on push
+
+Fork pull requests do not get repository secrets, so the action needs a trigger that runs
+with access to `MERGE_TOKEN`. Run it on pushes to the branches PRs merge into, find the PR
+that the pushed commit merged, and pass its number as `pr_number`.
+
+```yaml
+name: Cassette Merge
+
+on:
+  push:
+    branches: [develop, bugfixes, master]
+
+permissions: {}
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    environment: cassette-merge
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Find the merged PR
+        id: pr
+        run: |
+          number=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+            --jq '[.[] | select(.merged_at != null)][0].number // empty')
+          echo "number=${number}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - if: steps.pr.outputs.number != ''
+        uses: rotki/action-cassette-deck@v4
+        with:
+          token: ${{ secrets.MERGE_TOKEN }}
+          cassette_repo: test-caching
+          pr_number: ${{ steps.pr.outputs.number }}
+```
+
+#### Triggering on pull_request_target
+
+Without `pr_number` the action reads the PR from the `pull_request` event payload.
+It should only trigger on pull request closed events.
+
+> Note: from 2026-11-02 GitHub blocks `pull_request_target` on public repositories unless
+> the repository's Actions event policy allows it. Prefer the push trigger above.
 
 ```yaml
 name: Cassette Merge
@@ -51,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: cassette-merge
     steps:
-      - uses: rotki/action-cassette-deck@v1
+      - uses: rotki/action-cassette-deck@v4
         with:
           token: ${{ secrets.MERGE_TOKEN }}
           cassette_repo: test-caching

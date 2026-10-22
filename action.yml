@@ -8,6 +8,9 @@ inputs:
   cassette_repo:
     required: true
     description: the cassette repo name
+  pr_number:
+    required: false
+    description: Number of the merged pull request in the main repo. When set, the action fetches it through the API instead of reading the pull_request event payload, for push-triggered workflows.
 runs:
   using: node24
   main: dist/index.js
