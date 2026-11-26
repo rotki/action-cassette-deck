@@ -115,6 +115,13 @@ jobs:
           cassette_repo: test-caching
 ```
 
+## Development
+
+Requires Node.js 24 and pnpm 12. Run `pnpm install`, then `pnpm run all` to type check, lint,
+bundle `dist/` and test. Commit the rebuilt `dist/` with your change. Maintainers and coding agents
+should read [AGENTS.md](./AGENTS.md), which covers the checks to run, dependency updates, workflow
+checks and releases.
+
 ## License
 
 [AGPL-3.0](./LICENSE.md) License &copy; 2023- [Rotki Solutions GmbH](https://github.com/rotki)
