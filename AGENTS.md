@@ -258,8 +258,8 @@ Semantic versioning, applied to what workflows that use the action see:
 These live in GitHub, not in the repository. Keep this list current when they change.
 
 - `main` is protected: 1 approving review, and the `commit-lint`, `check-dist`, `build`, `test`
-  and `Analyze` checks must pass. `Check dist/` skips changes that only touch Markdown, so a
-  Markdown-only pull request waits for `check-dist` until an admin merges it.
+  and `Analyze` checks must pass. `Check dist/` runs on every change, Markdown-only ones
+  included, since a skipped required check would block the pull request.
 - `CODEOWNERS` assigns everything to `@rotki/maintainers`, which has write access.
 - The release workflow uses only the built-in `GITHUB_TOKEN`. There are no environments or
   repository secrets.
